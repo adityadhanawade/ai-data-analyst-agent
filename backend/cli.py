@@ -37,6 +37,7 @@ def main() -> None:
         print(f"code:\n{outcome['code']}\n")
         print(f"result:\n{outcome['result']}\n")
         print(f"explanation:\n{outcome['explanation']}\n")
+        print(f"chart suggestion: {outcome['chart']}\n")
 
         history.append(f"Q: {question}")
         history.append(f"A: {outcome['explanation']}")

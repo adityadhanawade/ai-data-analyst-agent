@@ -1,32 +1,46 @@
-"""Thin wrapper around the Claude API so agent.py doesn't care whether we're
-calling Anthropic directly (now, for local testing) or AWS Bedrock (later,
-for the hackathon submission). Only this file needs to change to switch."""
+"""Thin wrapper around the LLM so agent.py doesn't care which provider is
+behind it. Right now this calls Google Gemini's free tier (for local
+development/testing). For the actual hackathon submission we'll swap this
+to call AWS Bedrock instead - only this file will need to change."""
 
 import os
-from anthropic import Anthropic
+import warnings
+from google import genai
+from google.genai import types
+
+warnings.filterwarnings("ignore", message="Direct use of automatic function calling")
 
 _client = None
 
 
-def _get_client() -> Anthropic:
+def _get_client() -> genai.Client:
     global _client
     if _client is None:
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        api_key = os.environ.get("GEMINI_API_KEY")
         if not api_key:
             raise RuntimeError(
-                "ANTHROPIC_API_KEY is not set. Copy backend/.env.example to "
-                "backend/.env and fill in your key."
+                "GEMINI_API_KEY is not set. Add it to backend/.env"
             )
-        _client = Anthropic(api_key=api_key)
+        _client = genai.Client(api_key=api_key)
     return _client
 
 
-def ask_claude(system_prompt: str, user_prompt: str, max_tokens: int = 1024) -> str:
+def ask_claude(system_prompt: str, user_prompt: str, max_tokens: int = 2048) -> str:
+    """Name kept as ask_claude so agent.py doesn't need to change - this is
+    just the "ask the LLM" function, whichever model is behind it."""
     client = _get_client()
-    response = client.messages.create(
-        model="claude-sonnet-5",
-        max_tokens=max_tokens,
-        system=system_prompt,
-        messages=[{"role": "user", "content": user_prompt}],
+    response = client.models.generate_content(
+        model="gemini-3.6-flash",
+        contents=user_prompt,
+        config=types.GenerateContentConfig(
+            system_instruction=system_prompt,
+            max_output_tokens=max_tokens,
+        ),
     )
-    return response.content[0].text
+    if not response.text:
+        raise RuntimeError(
+            f"Gemini returned no text (finish_reason: "
+            f"{response.candidates[0].finish_reason if response.candidates else 'unknown'}). "
+            "This usually means the output got cut off - try increasing max_tokens."
+        )
+    return response.text

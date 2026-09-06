@@ -10,6 +10,7 @@ import pandas as pd
 from schema_utils import summarize_dataset
 from sandbox import run_sandboxed
 from llm_client import ask_claude
+from chart_selector import select_chart
 
 MAX_RETRIES = 3
 
@@ -66,17 +67,19 @@ def answer_question(df: pd.DataFrame, question: str, history: list[str] | None =
 
     for attempt in range(1, MAX_RETRIES + 1):
         prompt = _build_code_prompt(question, schema, history, previous_error, previous_code)
-        code = ask_claude(CODE_SYSTEM_PROMPT, prompt).strip()
+        code = ask_claude(CODE_SYSTEM_PROMPT, prompt, max_tokens=4096).strip()
         code = _strip_markdown_fences(code)
 
         status, value = run_sandboxed(code, df)
 
         if status == "ok" and not _result_looks_empty(value):
             explanation = _explain(question, value)
+            chart = select_chart(value)
             return {
                 "success": True,
                 "result": value,
                 "explanation": explanation,
+                "chart": chart,
                 "code": code,
                 "attempts": attempt,
             }
@@ -95,6 +98,7 @@ def answer_question(df: pd.DataFrame, question: str, history: list[str] | None =
             f"I couldn't reliably answer this after {MAX_RETRIES} attempts. "
             f"Last error: {previous_error}"
         ),
+        "chart": {"type": "none", "labels": [], "datasets": []},
         "code": previous_code,
         "attempts": MAX_RETRIES,
     }
