@@ -3,7 +3,7 @@
 Upload a dataset, ask questions about it in plain English, and watch an agent
 write, run, and self-correct its own analysis code to answer you.
 
-Built for [hackathon name] - AWS "Agents for Humans" track.
+Built for the AWS "Agents for Humans" hackathon.
 
 ## What makes this an "agent" and not a chatbot
 
@@ -51,7 +51,6 @@ backend/
   schema_utils.py      - summarizes a dataframe for the LLM prompt
   cli.py             - interactive terminal tester
 data/sample_datasets/  - test CSVs
-docs/                - notes, architecture docs
 ```
 
 ## Next steps (not built yet)
