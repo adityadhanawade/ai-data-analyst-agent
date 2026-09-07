@@ -1,0 +1,98 @@
+<!doctype html>
+<title>DataAgent Wireframes</title>
+<style>
+  :root{
+    --wf-bg:#fafafa; --wf-line:#111; --wf-fill:#e4e4e4; --wf-fill-2:#d0d0d0;
+    --wf-text:#222; --wf-muted:#777;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --wf-bg:#111; --wf-line:#eee; --wf-fill:#2a2a2a; --wf-fill-2:#3a3a3a;
+      --wf-text:#eee; --wf-muted:#999;
+    }
+  }
+  :root[data-theme="dark"]{
+    --wf-bg:#111; --wf-line:#eee; --wf-fill:#2a2a2a; --wf-fill-2:#3a3a3a;
+    --wf-text:#eee; --wf-muted:#999;
+  }
+  body{ background:var(--wf-bg); color:var(--wf-text); font-family:'Courier New',monospace; }
+  .page{ max-width:1200px; margin:0 auto; padding:32px 24px 80px; }
+  .screen-label{ font-size:13px; letter-spacing:.08em; text-transform:uppercase; color:var(--wf-muted); margin:48px 0 10px; }
+  .screen-label:first-child{ margin-top:0; }
+  .frame{ border:2px solid var(--wf-line); background:var(--wf-bg); }
+  .box{ border:1.5px dashed var(--wf-line); display:flex; align-items:center; justify-content:center;
+        text-align:center; font-size:13px; color:var(--wf-muted); padding:8px; box-sizing:border-box; }
+  .box.filled{ background:var(--wf-fill); border-style:solid; }
+  .box.filled2{ background:var(--wf-fill-2); border-style:solid; }
+  .tiny{ font-size:11px; }
+  .row{ display:flex; gap:12px; }
+  .col{ display:flex; flex-direction:column; gap:12px; }
+
+  /* Screen 1: upload */
+  .s1{ height:460px; padding:24px; box-sizing:border-box; display:flex; flex-direction:column; gap:20px; }
+  .s1-top{ display:flex; justify-content:space-between; align-items:center; }
+  .s1-drop{ flex:1; }
+  .s1-sample{ height:40px; width:220px; align-self:center; }
+
+  /* Screen 2: workspace */
+  .s2{ height:640px; padding:16px; box-sizing:border-box; display:flex; gap:16px; }
+  .s2-side{ width:220px; display:flex; flex-direction:column; gap:12px; }
+  .s2-main{ flex:1; display:flex; flex-direction:column; gap:12px; min-width:0; }
+  .s2-thread{ flex:1; display:flex; flex-direction:column; gap:14px; overflow:hidden; }
+  .qbubble{ align-self:flex-end; width:55%; height:40px; }
+  .answer{ align-self:flex-start; width:88%; display:flex; flex-direction:column; gap:8px; }
+  .answer-row{ display:flex; gap:8px; }
+  .inputbar{ height:52px; }
+</style>
+
+<div class="page">
+
+  <div class="screen-label">Screen 1 &mdash; Upload / Start</div>
+  <div class="frame s1">
+    <div class="s1-top">
+      <div class="box" style="width:160px;height:28px;border:none;justify-content:flex-start;font-weight:bold;color:var(--wf-text)">LOGO / NAME</div>
+      <div class="box" style="width:120px;height:28px">nav / about</div>
+    </div>
+    <div class="box" style="height:60px;border:none;font-size:20px;color:var(--wf-text)">Headline: "Ask your data anything"</div>
+    <div class="box s1-drop filled">
+      Drag &amp; drop CSV here<br><span class="tiny">or click to browse &middot; .csv only</span>
+    </div>
+    <div class="box s1-sample filled2">Try a sample dataset &rarr;</div>
+  </div>
+
+  <div class="screen-label">Screen 2 &mdash; Workspace (after upload)</div>
+  <div class="frame s2">
+    <div class="s2-side">
+      <div class="box filled" style="height:90px">Dataset info<br><span class="tiny">filename, rows, columns</span></div>
+      <div class="box" style="flex:1">Conversation history<br><span class="tiny">list of past questions, click to jump</span></div>
+      <div class="box" style="height:40px">+ New dataset</div>
+    </div>
+
+    <div class="s2-main">
+      <div class="s2-thread">
+        <div class="box qbubble filled2">Question: "which product is declining?"</div>
+
+        <div class="answer">
+          <div class="box" style="height:50px">Plain-English explanation text</div>
+          <div class="answer-row">
+            <div class="box filled" style="flex:1;height:160px">Chart area<br><span class="tiny">line / bar / pie, picked automatically</span></div>
+            <div class="box" style="width:34%;height:160px">Raw result table</div>
+          </div>
+          <div class="box tiny" style="height:26px;justify-content:flex-start;padding-left:12px">&#9656; Show the code it ran (collapsed)</div>
+        </div>
+
+        <div class="box qbubble filled2" style="opacity:.5">Question: "break that down by region"</div>
+      </div>
+
+      <div class="box inputbar">Type a question... [Ask]</div>
+    </div>
+  </div>
+
+  <div class="screen-label">Notes</div>
+  <div class="box tiny" style="height:70px;text-align:left;justify-content:flex-start;padding:12px">
+    &middot; Sidebar history lets a judge see the multi-turn memory working, not just the latest answer.<br>
+    &middot; "Show the code" stays collapsed by default so the page reads clean, expands for the technical judge.<br>
+    &middot; Chart + raw table side by side proves the number behind the picture, not just a pretty graphic.
+  </div>
+
+</div>
