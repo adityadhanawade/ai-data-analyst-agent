@@ -1,12 +1,39 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
+import { uploadDataset } from "@/lib/api";
 
 export default function UploadPage() {
+  const router = useRouter();
   const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function uploadFile(file: File) {
+    setError(null);
+    setIsUploading(true);
+    try {
+      const result = await uploadDataset(file);
+      const params = new URLSearchParams({
+        session: result.session_id,
+        filename: result.filename,
+        rows: String(result.rows),
+        columns: result.columns.join(","),
+      });
+      router.push(`/workspace?${params.toString()}`);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong uploading that file."
+      );
+    } finally {
+      setIsUploading(false);
+    }
+  }
 
   function validateAndHandleFile(file: File | undefined) {
     if (!file) return;
@@ -18,15 +45,27 @@ export default function UploadPage() {
       setError("That file is over 10MB. Please upload a smaller CSV.");
       return;
     }
-    setError(null);
-    // TODO: wire this up to the backend upload endpoint
-    console.log("File accepted:", file.name);
+    uploadFile(file);
   }
 
   function handleDrop(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
     setIsDragging(false);
     validateAndHandleFile(e.dataTransfer.files?.[0]);
+  }
+
+  async function trySampleDataset() {
+    setError(null);
+    setIsUploading(true);
+    try {
+      const res = await fetch("/sales_sample.csv");
+      const blob = await res.blob();
+      const file = new File([blob], "sales_sample.csv", { type: "text/csv" });
+      await uploadFile(file);
+    } catch {
+      setError("Couldn't load the sample dataset. Try again.");
+      setIsUploading(false);
+    }
   }
 
   return (
@@ -78,7 +117,7 @@ export default function UploadPage() {
             }}
             onDragLeave={() => setIsDragging(false)}
             onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => !isUploading && fileInputRef.current?.click()}
             animate={{
               scale: isDragging ? 1.015 : 1,
               borderColor: error
@@ -91,16 +130,18 @@ export default function UploadPage() {
                 : "var(--color-primary-light)",
             }}
             transition={{ duration: 0.2 }}
-            className="flex h-44 cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border-[1.5px] border-dashed"
+            className={`flex h-44 flex-col items-center justify-center gap-1 rounded-2xl border-[1.5px] border-dashed ${
+              isUploading ? "cursor-wait" : "cursor-pointer"
+            }`}
           >
             <p
               className={`text-base font-semibold ${
                 error ? "text-danger-text" : "text-text-primary"
               }`}
             >
-              {error ? error : "Drop your CSV here"}
+              {isUploading ? "Uploading..." : error ? error : "Drop your CSV here"}
             </p>
-            {!error && (
+            {!error && !isUploading && (
               <p className="text-sm text-text-muted">
                 or click to browse - .csv, up to 10MB
               </p>
@@ -121,7 +162,9 @@ export default function UploadPage() {
           transition={{ duration: 0.6, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
           whileHover={{ y: -1 }}
           whileTap={{ scale: 0.98 }}
-          className="mt-6 rounded-lg border border-border bg-surface px-5 py-3 text-sm font-medium text-primary shadow-sm transition-shadow hover:shadow-md"
+          disabled={isUploading}
+          onClick={trySampleDataset}
+          className="mt-6 rounded-lg border border-border bg-surface px-5 py-3 text-sm font-medium text-primary shadow-sm transition-shadow hover:shadow-md disabled:opacity-50"
         >
           Try the sample sales dataset -&gt;
         </motion.button>
