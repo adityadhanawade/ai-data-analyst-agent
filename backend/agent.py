@@ -9,7 +9,7 @@ import pandas as pd
 
 from schema_utils import summarize_dataset
 from sandbox import run_sandboxed
-from llm_client import ask_claude
+from llm_client import ask_llm
 from chart_selector import select_chart
 
 MAX_RETRIES = 3
@@ -67,7 +67,7 @@ def answer_question(df: pd.DataFrame, question: str, history: list[str] | None =
 
     for attempt in range(1, MAX_RETRIES + 1):
         prompt = _build_code_prompt(question, schema, history, previous_error, previous_code)
-        code = ask_claude(CODE_SYSTEM_PROMPT, prompt, max_tokens=4096).strip()
+        code = ask_llm(CODE_SYSTEM_PROMPT, prompt, max_tokens=4096).strip()
         code = _strip_markdown_fences(code)
 
         status, value = run_sandboxed(code, df)
@@ -109,7 +109,7 @@ def _explain(question: str, value) -> str:
     if len(result_str) > 2000:
         result_str = result_str[:2000] + "... (truncated)"
     prompt = f"Question: {question}\n\nResult:\n{result_str}"
-    return ask_claude(EXPLAIN_SYSTEM_PROMPT, prompt)
+    return ask_llm(EXPLAIN_SYSTEM_PROMPT, prompt)
 
 
 def _strip_markdown_fences(code: str) -> str:

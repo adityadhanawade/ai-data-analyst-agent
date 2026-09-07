@@ -25,9 +25,7 @@ def _get_client() -> genai.Client:
     return _client
 
 
-def ask_claude(system_prompt: str, user_prompt: str, max_tokens: int = 2048) -> str:
-    """Name kept as ask_claude so agent.py doesn't need to change - this is
-    just the "ask the LLM" function, whichever model is behind it."""
+def ask_llm(system_prompt: str, user_prompt: str, max_tokens: int = 2048) -> str:
     client = _get_client()
     response = client.models.generate_content(
         model="gemini-3.6-flash",
