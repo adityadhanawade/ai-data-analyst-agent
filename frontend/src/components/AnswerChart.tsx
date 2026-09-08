@@ -30,7 +30,7 @@ export default function AnswerChart({ chart }: { chart: AskResult["chart"] }) {
   });
 
   return (
-    <div className="h-56 w-full">
+    <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
         {chart.type === "line" ? (
           <LineChart data={rows} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
@@ -49,8 +49,15 @@ export default function AnswerChart({ chart }: { chart: AskResult["chart"] }) {
             ))}
           </LineChart>
         ) : chart.type === "bar" ? (
-          <BarChart data={rows} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
-            <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#475569" }} />
+          <BarChart data={rows} margin={{ top: 8, right: 8, left: -20, bottom: 24 }}>
+            <XAxis
+              dataKey="label"
+              interval={0}
+              angle={-30}
+              textAnchor="end"
+              height={60}
+              tick={{ fontSize: 10, fill: "#475569" }}
+            />
             <YAxis tick={{ fontSize: 11, fill: "#475569" }} />
             <Tooltip />
             {chart.datasets.map((ds, i) => (

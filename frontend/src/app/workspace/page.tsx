@@ -178,14 +178,6 @@ function WorkspaceContent() {
                         <div className="mt-4 flex flex-col gap-4 sm:flex-row">
                           {turn.result.chart.type !== "none" && (
                             <div className="flex-1 rounded-lg bg-primary-light p-3">
-                              <span className="mb-1 inline-block rounded-full bg-success-bg px-2 py-0.5 text-[11px] font-medium text-success-text">
-                                Auto-selected:{" "}
-                                {turn.result.chart.type === "line"
-                                  ? "Line chart"
-                                  : turn.result.chart.type === "bar"
-                                  ? "Bar chart"
-                                  : "Pie chart"}
-                              </span>
                               <AnswerChart chart={turn.result.chart} />
                             </div>
                           )}
