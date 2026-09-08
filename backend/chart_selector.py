@@ -19,6 +19,15 @@ import pandas as pd
 def _looks_like_time_index(index) -> bool:
     if isinstance(index, pd.DatetimeIndex):
         return True
+    # Only attempt to parse as dates when the index is actually made of
+    # strings (e.g. "2025-01-05"). A plain integer/RangeIndex (0, 1, 2...)
+    # is NOT a date - but pd.to_datetime() happily "succeeds" on integers
+    # by treating them as epoch timestamps, which produced false positives
+    # (e.g. a 25-row attribute list getting classified as a time series).
+    if not pd.api.types.is_object_dtype(index) and not isinstance(index, pd.Index):
+        return False
+    if pd.api.types.is_numeric_dtype(index):
+        return False
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -34,6 +43,11 @@ def select_chart(value) -> dict:
         return {"type": "none", "labels": [], "datasets": []}
 
     if isinstance(value, pd.Series):
+        # A series of names/labels (e.g. a list of column names) has
+        # nothing quantitative to plot - only chart actual numbers.
+        if not pd.api.types.is_numeric_dtype(value):
+            return {"type": "none", "labels": [], "datasets": []}
+
         labels = [str(i) for i in value.index]
         chart_type = "line" if _looks_like_time_index(value.index) else "bar"
         if chart_type == "bar" and len(value) <= 6:
@@ -47,12 +61,15 @@ def select_chart(value) -> dict:
 
     if isinstance(value, pd.DataFrame):
         labels = [str(i) for i in value.index]
-        chart_type = "line" if _looks_like_time_index(value.index) else "bar"
         datasets = [
             {"label": str(col), "data": value[col].tolist()}
             for col in value.columns
             if pd.api.types.is_numeric_dtype(value[col])
         ]
+        if not datasets:
+            # No numeric columns at all - nothing to chart, table/text only.
+            return {"type": "none", "labels": [], "datasets": []}
+        chart_type = "line" if _looks_like_time_index(value.index) else "bar"
         return {"type": chart_type, "labels": labels, "datasets": datasets}
 
     # Anything else (list, dict, etc.) - not chartable with our simple rules.
