@@ -1,122 +1,131 @@
-"""The core agent loop: plan -> act -> observe -> retry -> explain.
+"""The core agent: built on the Strands Agents SDK.
 
-This is the piece that makes this project an "agent" rather than a chatbot:
-it writes real code, runs it, notices when the result looks wrong, and
-fixes its own mistakes without a human in the loop.
+This is the piece that makes this project an "agent" rather than a
+chatbot: it writes real code, runs it through a tool call, notices when
+the result looks wrong from the tool's response, and fixes its own
+mistakes without a human in the loop - all driven by Strands' own
+tool-calling loop rather than a hand-rolled retry for-loop.
+
+The dataframe can't be handed to the model directly (it's a Python
+object, not something an LLM can generate), so `run_analysis_code` is
+defined as a closure inside `answer_question()`, capturing `df` and a
+few mutable trackers via closure instead of function arguments.
 """
 
-import pandas as pd
+import os
+
+from strands import Agent, tool
+from strands.models.gemini import GeminiModel
 
 from schema_utils import summarize_dataset
 from sandbox import run_sandboxed
-from llm_client import ask_llm
 from chart_selector import select_chart
 
 MAX_RETRIES = 3
 
-CODE_SYSTEM_PROMPT = """You are a data analyst agent. You are given a pandas \
-DataFrame called `df` and a question about it. Write Python code that \
-computes the answer and assigns it to a variable named `result`.
+SYSTEM_PROMPT = """You are a data analyst agent working with a pandas \
+DataFrame called `df`. To answer a question, call the `run_analysis_code` \
+tool with Python code that computes the answer and assigns it to a \
+variable named `result`.
 
-Rules:
+Rules for the code you send to the tool:
 - Only use `df`, `pd` (pandas) and `np` (numpy). No other imports.
 - `result` should be a pandas Series, DataFrame, or a plain Python scalar.
 - Do not print anything. Do not use input().
-- Return ONLY the Python code, no explanation, no markdown fences.
+
+If the tool reports an error or an empty result, fix your code and call \
+the tool again. Once the tool reports success, respond with a short \
+(2-4 sentence) plain-English explanation of what the result shows, being \
+specific with numbers. Do not include code or mention the tool in your \
+final answer - just the explanation.
 """
-
-EXPLAIN_SYSTEM_PROMPT = """You are a data analyst explaining a result to a \
-non-technical person. Given the original question and the computed result, \
-write a short (2-4 sentence) plain-English explanation of what the result \
-shows. Be specific with numbers. Do not restate the raw code.
-"""
-
-
-def _build_code_prompt(question: str, schema: str, history: list[str], previous_error: str | None, previous_code: str | None) -> str:
-    parts = [f"Dataset schema:\n{schema}\n"]
-    if history:
-        parts.append("Recent conversation:\n" + "\n".join(history) + "\n")
-    parts.append(f"Question: {question}")
-    if previous_error and previous_code:
-        parts.append(
-            f"\nYour previous attempt failed.\nPrevious code:\n{previous_code}\n"
-            f"Error:\n{previous_error}\nFix it and try again."
-        )
-    return "\n".join(parts)
 
 
 def _result_looks_empty(value) -> bool:
     if value is None:
         return True
-    if isinstance(value, (pd.Series, pd.DataFrame)):
-        return value.empty
-    return False
+    try:
+        return value.empty  # pandas Series/DataFrame
+    except AttributeError:
+        return False
 
 
-def answer_question(df: pd.DataFrame, question: str, history: list[str] | None = None) -> dict:
-    """Runs the full plan->act->observe->retry->explain loop.
+def answer_question(df, question: str, history: list[str] | None = None) -> dict:
+    """Runs the agent on one question and returns the outcome.
 
     Returns a dict: {"success": bool, "result": ..., "explanation": str,
-    "code": str, "attempts": int}
+    "chart": {...}, "code": str, "attempts": int}
     """
     schema = summarize_dataset(df)
     history = history or []
 
-    previous_error = None
-    previous_code = None
+    state = {"attempts": 0, "last_code": None, "last_result": None, "last_error": None}
 
-    for attempt in range(1, MAX_RETRIES + 1):
-        prompt = _build_code_prompt(question, schema, history, previous_error, previous_code)
-        code = ask_llm(CODE_SYSTEM_PROMPT, prompt, max_tokens=4096).strip()
-        code = _strip_markdown_fences(code)
+    @tool
+    def run_analysis_code(code: str) -> str:
+        """Runs pandas code against the user's dataset and reports the result.
+
+        Args:
+            code: Python code using df, pd, and np that assigns the answer
+                to a variable named `result`.
+        """
+        state["attempts"] += 1
+        state["last_code"] = code
+
+        if state["attempts"] > MAX_RETRIES:
+            return (
+                "You've already tried this "
+                f"{MAX_RETRIES} times. Stop retrying - tell the user you "
+                "couldn't reliably answer this question."
+            )
 
         status, value = run_sandboxed(code, df)
 
         if status == "ok" and not _result_looks_empty(value):
-            explanation = _explain(question, value)
-            chart = select_chart(value)
-            return {
-                "success": True,
-                "result": value,
-                "explanation": explanation,
-                "chart": chart,
-                "code": code,
-                "attempts": attempt,
-            }
+            state["last_result"] = value
+            state["last_error"] = None
+            return f"Success. result = {value}"
 
-        # Failed or empty - feed it back for a retry.
-        previous_code = code
         if status == "ok":
-            previous_error = "The code ran but `result` was empty/None - likely wrong logic."
-        else:
-            previous_error = str(value)
+            state["last_error"] = "The code ran but `result` was empty/None."
+            return "The code ran but `result` was empty or None. Try a different approach."
+
+        state["last_error"] = str(value)
+        return f"Error: {value}"
+
+    model = GeminiModel(
+        client_args={"api_key": os.environ.get("GEMINI_API_KEY")},
+        model_id="gemini-3.6-flash",
+    )
+    agent = Agent(model=model, tools=[run_analysis_code], system_prompt=SYSTEM_PROMPT)
+
+    prompt_parts = [f"Dataset schema:\n{schema}\n"]
+    if history:
+        prompt_parts.append("Recent conversation:\n" + "\n".join(history) + "\n")
+    prompt_parts.append(f"Question: {question}")
+
+    response = agent("\n".join(prompt_parts))
+    explanation = str(response)
+
+    if state["last_result"] is not None:
+        return {
+            "success": True,
+            "result": state["last_result"],
+            "explanation": explanation,
+            "chart": select_chart(state["last_result"]),
+            "code": state["last_code"],
+            "attempts": state["attempts"],
+        }
 
     return {
         "success": False,
         "result": None,
-        "explanation": (
-            f"I couldn't reliably answer this after {MAX_RETRIES} attempts. "
-            f"Last error: {previous_error}"
+        "explanation": explanation
+        or (
+            f"I couldn't reliably answer this after {state['attempts']} attempts. "
+            f"Last error: {state['last_error']}"
         ),
         "chart": {"type": "none", "labels": [], "datasets": []},
-        "code": previous_code,
-        "attempts": MAX_RETRIES,
+        "code": state["last_code"],
+        "attempts": state["attempts"],
     }
-
-
-def _explain(question: str, value) -> str:
-    result_str = str(value)
-    if len(result_str) > 2000:
-        result_str = result_str[:2000] + "... (truncated)"
-    prompt = f"Question: {question}\n\nResult:\n{result_str}"
-    return ask_llm(EXPLAIN_SYSTEM_PROMPT, prompt)
-
-
-def _strip_markdown_fences(code: str) -> str:
-    if code.startswith("```"):
-        lines = code.splitlines()
-        lines = lines[1:]
-        if lines and lines[-1].strip().startswith("```"):
-            lines = lines[:-1]
-        return "\n".join(lines)
-    return code
