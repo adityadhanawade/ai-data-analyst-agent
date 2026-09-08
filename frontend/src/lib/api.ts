@@ -11,6 +11,7 @@ export type AskResult = {
   success: boolean;
   explanation: string;
   result_preview: string | null;
+  result_table: { columns: string[]; rows: Record<string, string | number>[] } | null;
   chart: { type: string; labels: string[]; datasets: { label: string; data: number[] }[] };
   code: string;
   attempts: number;
