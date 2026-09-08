@@ -109,7 +109,17 @@ def ask(req: AskRequest):
     if session is None:
         raise HTTPException(404, "Session not found - please upload a dataset again.")
 
-    outcome = answer_question(session["df"], req.question, session["history"])
+    try:
+        outcome = answer_question(session["df"], req.question, session["history"])
+    except Exception as e:  # noqa: BLE001 - any model/API failure should reach the user cleanly
+        message = str(e)
+        if "429" in message or "RESOURCE_EXHAUSTED" in message:
+            raise HTTPException(
+                429,
+                "The AI model's free daily quota has been used up. Please try again "
+                "later, or switch to a different model in agent.py.",
+            )
+        raise HTTPException(502, f"The AI model failed to respond: {message[:300]}")
 
     session["history"].append(f"Q: {req.question}")
     session["history"].append(f"A: {outcome['explanation']}")

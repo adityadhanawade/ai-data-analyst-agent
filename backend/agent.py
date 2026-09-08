@@ -95,7 +95,7 @@ def answer_question(df, question: str, history: list[str] | None = None) -> dict
 
     model = GeminiModel(
         client_args={"api_key": os.environ.get("GEMINI_API_KEY")},
-        model_id="gemini-3.6-flash",
+        model_id="gemini-3.5-flash-lite",
     )
     agent = Agent(model=model, tools=[run_analysis_code], system_prompt=SYSTEM_PROMPT)
 
