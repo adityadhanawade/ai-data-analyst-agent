@@ -30,7 +30,15 @@ variable named `result`.
 
 Rules for the code you send to the tool:
 - Only use `df`, `pd` (pandas) and `np` (numpy). No other imports.
-- `result` should be a pandas Series, DataFrame, or a plain Python scalar.
+- `result` must be a single pandas Series, a single pandas DataFrame, or a \
+plain Python scalar (a number or string) - never a dict, list, or anything \
+nesting multiple pandas objects together. If you need to report more than \
+one figure, put them all in one Series with clear labels as the index, or \
+one DataFrame with clear columns - never a dict combining separate pieces.
+- When your result is grouped by a category, date, or ID (e.g. via \
+`.groupby(...)`), leave that column as the index rather than also keeping \
+it as a plain data column - it is a row label, not a value to plot. Never \
+include an ID/grouping column a second time as a data column.
 - Do not print anything. Do not use input().
 
 If the tool reports an error or an empty result, fix your code and call \
@@ -73,10 +81,13 @@ def answer_question(df, question: str, history: list[str] | None = None) -> dict
         state["last_code"] = code
 
         if state["attempts"] > MAX_RETRIES:
+            state["attempts"] -= 1  # this call didn't run any code - don't count it
             return (
-                "You've already tried this "
-                f"{MAX_RETRIES} times. Stop retrying - tell the user you "
-                "couldn't reliably answer this question."
+                "STOP. Do not call run_analysis_code again under any "
+                "circumstances - the tool is now disabled for this question. "
+                "Immediately write your final plain-English answer telling the "
+                "user you couldn't reliably compute this, with no further tool "
+                "calls."
             )
 
         status, value = run_sandboxed(code, df)
