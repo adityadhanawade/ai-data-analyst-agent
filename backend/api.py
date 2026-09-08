@@ -12,6 +12,7 @@ were a real product, sessions would need to survive a server restart.
 
 import io
 import json
+import os
 import uuid
 
 import pandas as pd
@@ -28,9 +29,17 @@ load_dotenv()
 
 app = FastAPI(title="DataAgent API")
 
+# Comma-separated list, e.g. "http://localhost:3000,https://myapp.vercel.app"
+# Defaults to localhost so local dev keeps working with no setup.
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -46,10 +55,12 @@ async def catch_all_exception_handler(request: Request, exc: Exception):
     fetch" with zero information. This guarantees every request gets a
     real JSON error back instead.
     """
+    origin = request.headers.get("origin")
+    headers = {"Access-Control-Allow-Origin": origin} if origin in ALLOWED_ORIGINS else {}
     return JSONResponse(
         status_code=500,
         content={"detail": f"Unexpected server error: {type(exc).__name__}: {str(exc)[:300]}"},
-        headers={"Access-Control-Allow-Origin": "http://localhost:3000"},
+        headers=headers,
     )
 
 # session_id -> {"df": pd.DataFrame, "history": list[str], "filename": str}
