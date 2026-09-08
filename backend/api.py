@@ -16,8 +16,9 @@ import uuid
 
 import pandas as pd
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from agent import answer_question
@@ -33,6 +34,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(Exception)
+async def catch_all_exception_handler(request: Request, exc: Exception):
+    """Last-resort safety net.
+
+    Without this, ANY uncaught error - including ones outside our own
+    code, like FastAPI failing to JSON-encode an unexpected value type -
+    kills the response entirely and the frontend just sees "Failed to
+    fetch" with zero information. This guarantees every request gets a
+    real JSON error back instead.
+    """
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Unexpected server error: {type(exc).__name__}: {str(exc)[:300]}"},
+        headers={"Access-Control-Allow-Origin": "http://localhost:3000"},
+    )
 
 # session_id -> {"df": pd.DataFrame, "history": list[str], "filename": str}
 SESSIONS: dict[str, dict] = {}
@@ -85,8 +103,12 @@ def serialize_result_table(value) -> dict | None:
     types (int64, etc.) come out as normal Python numbers, not something
     FastAPI chokes on."""
     if isinstance(value, pd.DataFrame):
+        # Column labels don't go through to_json(), so numpy-typed column
+        # names (e.g. int64 years from an unstack()) must be stringified
+        # by hand - otherwise FastAPI's encoder crashes the whole response
+        # instead of just this field.
         records = json.loads(value.reset_index(drop=True).to_json(orient="records"))
-        return {"columns": list(value.columns), "rows": records[:25]}
+        return {"columns": [str(c) for c in value.columns], "rows": records[:25]}
 
     if isinstance(value, pd.Series):
         as_dict = json.loads(value.to_json())
