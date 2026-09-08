@@ -39,6 +39,15 @@ one DataFrame with clear columns - never a dict combining separate pieces.
 `.groupby(...)`), leave that column as the index rather than also keeping \
 it as a plain data column - it is a row label, not a value to plot. Never \
 include an ID/grouping column a second time as a data column.
+- NEVER fabricate or hardcode a placeholder result (e.g. `result = \
+pd.Series([100], index=['SomeCategory'])`) just to make the tool return \
+success. Every value in `result` must come from actually computing on \
+`df`. If the question doesn't have one single clean answer (e.g. nothing \
+is actually declining, or the premise is slightly wrong), compute the \
+closest real, honest metric from the data instead (e.g. growth per \
+category, or the smallest real change) and explain the nuance in your \
+final answer - do not invent numbers to avoid saying "no category fits \
+that description."
 - Do not print anything. Do not use input().
 
 If the tool reports an error or an empty result, fix your code and call \
@@ -67,7 +76,19 @@ def answer_question(df, question: str, history: list[str] | None = None) -> dict
     schema = summarize_dataset(df)
     history = history or []
 
-    state = {"attempts": 0, "last_code": None, "last_result": None, "last_error": None}
+    state = {
+        "attempts": 0,
+        "last_code": None,
+        "last_result": None,
+        "last_error": None,
+        "result_code": None,  # the code that actually produced last_result -
+                               # kept separate from last_code, which tracks
+                               # whatever was tried most recently (the agent
+                               # sometimes calls the tool again after a
+                               # success, e.g. to double-check something,
+                               # which must not overwrite what's shown as
+                               # "the code that ran" for the real result)
+    }
 
     @tool
     def run_analysis_code(code: str) -> str:
@@ -94,6 +115,7 @@ def answer_question(df, question: str, history: list[str] | None = None) -> dict
 
         if status == "ok" and not _result_looks_empty(value):
             state["last_result"] = value
+            state["result_code"] = code
             state["last_error"] = None
             return f"Success. result = {value}"
 
@@ -124,7 +146,7 @@ def answer_question(df, question: str, history: list[str] | None = None) -> dict
             "result": state["last_result"],
             "explanation": explanation,
             "chart": select_chart(state["last_result"]),
-            "code": state["last_code"],
+            "code": state["result_code"],
             "attempts": state["attempts"],
         }
 
