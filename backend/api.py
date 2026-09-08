@@ -106,12 +106,16 @@ def serialize_result_table(value) -> dict | None:
         # Column labels don't go through to_json(), so numpy-typed column
         # names (e.g. int64 years from an unstack()) must be stringified
         # by hand - otherwise FastAPI's encoder crashes the whole response
-        # instead of just this field.
-        records = json.loads(value.reset_index(drop=True).to_json(orient="records"))
+        # instead of just this field. date_format="iso" is needed too -
+        # pandas' default for dates is raw epoch milliseconds (e.g.
+        # 1041811200000), which is unreadable; ISO strings show a real date.
+        records = json.loads(
+            value.reset_index(drop=True).to_json(orient="records", date_format="iso")
+        )
         return {"columns": [str(c) for c in value.columns], "rows": records[:25]}
 
     if isinstance(value, pd.Series):
-        as_dict = json.loads(value.to_json())
+        as_dict = json.loads(value.to_json(date_format="iso"))
         index_name = value.index.name or "key"
         value_name = value.name or "value"
         rows = [{index_name: k, value_name: v} for k, v in as_dict.items()]
