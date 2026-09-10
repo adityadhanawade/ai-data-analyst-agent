@@ -77,7 +77,7 @@ export default function AnswerChart({ chart }: { chart: AskResult["chart"] }) {
               dataKey={chart.datasets[0].label}
               nameKey="label"
               outerRadius={80}
-              label={(entry) => entry.label}
+              label={(entry: { name?: string }) => entry.name}
             >
               {rows.map((_, i) => (
                 <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
