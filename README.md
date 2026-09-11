@@ -5,6 +5,15 @@ write, run, and self-correct its own analysis code to answer you.
 
 Built for the "Agents for Humans" hackathon.
 
+## Live demo
+
+- **App**: https://ai-data-analyst-agent-snowy.vercel.app
+- **Backend API**: https://ai-data-analyst-agent-vdup.onrender.com
+
+The backend runs on Render's free tier, so the first request after a period
+of inactivity can take 30-60s while it spins back up - later requests are
+fast.
+
 ## What makes this an "agent" and not a chatbot
 
 Most "chat with your data" tools are one-shot: they generate a query, run it
@@ -35,10 +44,13 @@ larger real-world dataset (2823 rows, non-UTF-8 encoded):
   edge-case state live in Figma:
   https://www.figma.com/design/kfAReWFHsMN1EtSl1Bxqko/DataAgent-Wireframes?node-id=0-1
 
-Not done yet: deployment (only runs locally right now), the ambient
-background/motion polish on the landing page (deferred on purpose), and a
-few edge-case states (live retry-attempt counter, styled failure state)
-that exist in Figma but not yet in the real UI.
+Deployed live on Vercel (frontend) and Render (backend) - see Live demo
+above.
+
+Not done yet: the ambient background/motion polish on the landing page
+(deferred on purpose), and a few edge-case states (live retry-attempt
+counter, styled failure state) that exist in Figma but not yet in the
+real UI.
 
 ## Running it locally
 
@@ -77,11 +89,10 @@ docs/wireframes.html  - early low-fidelity wireframes (superseded by Figma)
 
 ## Next steps
 
-- Deploy so the app is reachable without running it locally
 - Wire the remaining Figma states (live retry counter, styled failure
   state) into the real UI
 - Apply the deferred background/motion polish to the landing page
-- Prepare the demo script and submission write-up
+- Prepare the demo video and Devpost submission write-up
 
 ## Notes on hackathon requirements
 
