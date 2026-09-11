@@ -33,7 +33,7 @@ larger real-world dataset (2823 rows, non-UTF-8 encoded):
   real charts (Recharts), real result tables, sidebar conversation history.
 - **Design**: full wireframes and polished mockups for every screen and
   edge-case state live in Figma:
-  https://www.figma.com/design/kfAReWFHsMN1EtSl1Bxqko
+  https://www.figma.com/design/kfAReWFHsMN1EtSl1Bxqko/DataAgent-Wireframes?node-id=0-1
 
 Not done yet: deployment (only runs locally right now), the ambient
 background/motion polish on the landing page (deferred on purpose), and a
