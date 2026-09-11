@@ -50,8 +50,12 @@ def select_chart(value) -> dict:
 
         labels = [str(i) for i in value.index]
         chart_type = "line" if _looks_like_time_index(value.index) else "bar"
-        if chart_type == "bar" and len(value) <= 6:
-            # Small number of categories - pie works well for part-of-whole.
+        has_negative = (value < 0).any()
+        if chart_type == "bar" and len(value) <= 6 and not has_negative:
+            # Small number of categories, all non-negative - pie works well
+            # for part-of-whole. Pie can't meaningfully represent negative
+            # values (e.g. a "which category is declining" query), so those
+            # stay as a bar chart, which handles negatives fine.
             chart_type = "pie"
         return {
             "type": chart_type,

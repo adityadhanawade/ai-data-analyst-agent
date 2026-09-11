@@ -13,6 +13,9 @@ few mutable trackers via closure instead of function arguments.
 """
 
 import os
+import re
+
+import pandas as pd
 
 from strands import Agent, tool
 from strands.models.gemini import GeminiModel
@@ -22,6 +25,77 @@ from sandbox import run_sandboxed
 from chart_selector import select_chart
 
 MAX_RETRIES = 3
+NUMBER_RE = re.compile(r"-?\d[\d,]*\.?\d*")
+
+
+def _numbers_in(text: str) -> set[float]:
+    out = set()
+    for raw in NUMBER_RE.findall(text):
+        try:
+            out.add(round(float(raw.replace(",", "")), 2))
+        except ValueError:
+            continue
+    return out
+
+
+def _numbers_in_result(value) -> set[float]:
+    if isinstance(value, (pd.Series, pd.DataFrame)):
+        nums = pd.to_numeric(
+            value.values.ravel() if isinstance(value, pd.DataFrame) else value.values,
+            errors="coerce",
+        )
+        return {round(float(n), 2) for n in nums if pd.notna(n)}
+    if isinstance(value, (int, float)):
+        return {round(float(value), 2)}
+    return _numbers_in(str(value))
+
+
+def _explanation_is_grounded(explanation: str, result) -> bool:
+    """Guards against the LLM describing numbers it imagined earlier (in a
+    code comment or an abandoned attempt) instead of the real, verified
+    `result` the sandbox actually computed - the one thing this product
+    promises never to fabricate."""
+    claimed = _numbers_in(explanation)
+    if not claimed:
+        return True  # no numeric claims made - nothing to contradict
+    actual = _numbers_in_result(result)
+    if not actual:
+        return True  # can't verify against a non-numeric result; don't block it
+    return any(
+        abs(abs(c) - abs(a)) <= max(1.0, abs(a) * 0.01)
+        for c in claimed
+        for a in actual
+    )
+
+
+def _strip_result_restatement(explanation: str) -> str:
+    """The model is instructed to open with a "Result: ..." restatement as
+    a self-grounding step before writing its prose explanation - but a
+    small model doesn't reliably use that exact word, so this can't just
+    regex for the literal prefix. Instead: split on the first blank line,
+    and treat the part before it as a data dump to discard only if it
+    doesn't read like a finished sentence (pandas reprs like "...dtype:
+    int64" never end in punctuation) and a real explanation follows."""
+    text = explanation.strip()
+    if "\n\n" not in text:
+        return text
+    head, _, tail = text.partition("\n\n")
+    tail = tail.strip()
+    if tail and not re.search(r"[.!?]\s*$", head.strip()):
+        return tail
+    return text
+
+
+def _fallback_explanation(result) -> str:
+    """A guaranteed-correct, if plainer, description built directly from the
+    verified result - used only when the model's own explanation contains
+    numbers that don't match what was actually computed."""
+    if isinstance(result, pd.Series):
+        pairs = ", ".join(f"{idx}: {val}" for idx, val in result.items())
+        return f"Here is the verified result: {pairs}."
+    if isinstance(result, pd.DataFrame):
+        return "Here is the verified result:\n" + result.to_string(index=False)
+    return f"Here is the verified result: {result}."
 
 SYSTEM_PROMPT = """You are a data analyst agent working with a pandas \
 DataFrame called `df`. To answer a question, call the `run_analysis_code` \
@@ -51,10 +125,24 @@ that description."
 - Do not print anything. Do not use input().
 
 If the tool reports an error or an empty result, fix your code and call \
-the tool again. Once the tool reports success, respond with a short \
-(2-4 sentence) plain-English explanation of what the result shows, being \
-specific with numbers. Do not include code or mention the tool in your \
-final answer - just the explanation.
+the tool again.
+
+Once the tool reports success, your final answer must have exactly two \
+parts, in this order:
+
+1. A line starting with "Result:" that copies the numbers from the \
+tool's "Success. result = ..." message character-for-character - the \
+same digits, the same order, nothing rounded, nothing recalculated. \
+Ignore any number you computed earlier in a code comment, in your own \
+reasoning, or in a previous failed attempt; those were guesses and may \
+be wrong. Only the most recent "Success. result = ..." message is real.
+2. Then a short (2-4 sentence) plain-English explanation of what that \
+restated result shows. Every number in this explanation must be one you \
+just wrote in the "Result:" line - do not introduce a new number here, \
+even one that "sounds more precise." If you are about to type a number \
+that isn't in the "Result:" line above, stop: you are fabricating it.
+
+Do not include code or mention the tool anywhere in your final answer.
 """
 
 
@@ -138,9 +226,11 @@ def answer_question(df, question: str, history: list[str] | None = None) -> dict
     prompt_parts.append(f"Question: {question}")
 
     response = agent("\n".join(prompt_parts))
-    explanation = str(response)
+    explanation = _strip_result_restatement(str(response))
 
     if state["last_result"] is not None:
+        if not _explanation_is_grounded(explanation, state["last_result"]):
+            explanation = _fallback_explanation(state["last_result"])
         return {
             "success": True,
             "result": state["last_result"],

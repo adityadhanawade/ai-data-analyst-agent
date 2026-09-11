@@ -169,6 +169,86 @@ export default function UploadPage() {
           Try the sample sales dataset -&gt;
         </motion.button>
       </main>
+
+      <section
+        id="how-it-works"
+        className="mx-auto mt-28 w-full max-w-5xl scroll-mt-16 px-6 pb-24 sm:px-16"
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          className="mb-10 text-center"
+        >
+          <span className="text-xs font-semibold tracking-[0.2em] text-primary">
+            HOW IT WORKS
+          </span>
+          <h2 className="mt-3 text-2xl font-bold text-text-primary sm:text-3xl">
+            An agent that checks its own work
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl text-sm text-text-muted">
+            Most tools return whatever a model produces on the first try.
+            DataAgent writes real code, runs it, and rewrites it when
+            something looks wrong - before it ever answers you.
+          </p>
+        </motion.div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            {
+              step: "1",
+              title: "Upload",
+              body: "Drop a CSV, or try the sample dataset - no schema setup needed.",
+            },
+            {
+              step: "2",
+              title: "Ask",
+              body: "Type a question in plain English, the same way you'd ask a colleague.",
+            },
+            {
+              step: "3",
+              title: "Self-correct",
+              body: "The agent writes pandas code, runs it safely, and rewrites it on its own if it fails - up to 3 tries.",
+              highlight: true,
+            },
+            {
+              step: "4",
+              title: "Explain",
+              body: "You get a plain-English answer, a chart when it helps, and the option to see the exact code.",
+            },
+          ].map((item, i) => (
+            <motion.div
+              key={item.step}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-80px" }}
+              transition={{
+                duration: 0.5,
+                delay: i * 0.08,
+                ease: [0.16, 1, 0.3, 1],
+              }}
+              className={`rounded-2xl border p-5 ${
+                item.highlight
+                  ? "border-amber-border bg-amber-bg"
+                  : "border-border bg-surface"
+              }`}
+            >
+              <span
+                className={`text-xs font-semibold ${
+                  item.highlight ? "text-amber-text" : "text-primary"
+                }`}
+              >
+                STEP {item.step}
+              </span>
+              <h3 className="mt-2 text-base font-bold text-text-primary">
+                {item.title}
+              </h3>
+              <p className="mt-1.5 text-sm text-text-muted">{item.body}</p>
+            </motion.div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
