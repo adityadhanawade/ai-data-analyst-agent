@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
+import { TextEffect } from "@/components/core/text-effect";
+import { GlowEffect } from "@/components/core/glow-effect";
 import { uploadDataset } from "@/lib/api";
 
 export default function UploadPage() {
@@ -92,9 +94,14 @@ export default function UploadPage() {
           transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
           className="flex max-w-3xl flex-col items-center gap-5 text-center"
         >
-          <span className="text-xs font-semibold tracking-[0.2em] text-primary">
+          <TextEffect
+            as="span"
+            per="char"
+            preset="fade"
+            className="text-xs font-semibold tracking-[0.2em] text-primary"
+          >
             SELF-CORRECTING DATA AGENT
-          </span>
+          </TextEffect>
           <h1 className="text-4xl font-bold tracking-tight text-text-primary sm:text-5xl">
             Ask your data anything
           </h1>
@@ -110,43 +117,55 @@ export default function UploadPage() {
           transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
           className="mt-10 w-full max-w-3xl"
         >
-          <motion.div
-            onDragOver={(e) => {
-              e.preventDefault();
-              setIsDragging(true);
-            }}
-            onDragLeave={() => setIsDragging(false)}
-            onDrop={handleDrop}
-            onClick={() => !isUploading && fileInputRef.current?.click()}
-            animate={{
-              scale: isDragging ? 1.015 : 1,
-              borderColor: error
-                ? "var(--color-danger-border)"
-                : "var(--color-primary)",
-              backgroundColor: error
-                ? "var(--color-danger-bg)"
-                : isDragging
-                ? "#dbe4fb"
-                : "var(--color-primary-light)",
-            }}
-            transition={{ duration: 0.2 }}
-            className={`flex h-44 flex-col items-center justify-center gap-1 rounded-2xl border-[1.5px] border-dashed ${
-              isUploading ? "cursor-wait" : "cursor-pointer"
-            }`}
-          >
-            <p
-              className={`text-base font-semibold ${
-                error ? "text-danger-text" : "text-text-primary"
+          <div className="relative">
+            {!error && (
+              <GlowEffect
+                colors={["rgba(63, 63, 70, 0.35)"]}
+                mode="breathe"
+                blur="medium"
+                scale={1.03}
+                duration={6}
+                className="rounded-2xl"
+              />
+            )}
+            <motion.div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDragging(true);
+              }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={handleDrop}
+              onClick={() => !isUploading && fileInputRef.current?.click()}
+              animate={{
+                scale: isDragging ? 1.015 : 1,
+                borderColor: error
+                  ? "var(--color-danger-border)"
+                  : "var(--color-primary)",
+                backgroundColor: error
+                  ? "var(--color-danger-bg)"
+                  : isDragging
+                  ? "#dbe4fb"
+                  : "var(--color-primary-light)",
+              }}
+              transition={{ duration: 0.2 }}
+              className={`relative flex h-44 flex-col items-center justify-center gap-1 rounded-2xl border-[1.5px] border-dashed ${
+                isUploading ? "cursor-wait" : "cursor-pointer"
               }`}
             >
-              {isUploading ? "Uploading..." : error ? error : "Drop your CSV here"}
-            </p>
-            {!error && !isUploading && (
-              <p className="text-sm text-text-muted">
-                or click to browse - .csv, up to 10MB
+              <p
+                className={`text-base font-semibold ${
+                  error ? "text-danger-text" : "text-text-primary"
+                }`}
+              >
+                {isUploading ? "Uploading..." : error ? error : "Drop your CSV here"}
               </p>
-            )}
-          </motion.div>
+              {!error && !isUploading && (
+                <p className="text-sm text-text-muted">
+                  or click to browse - .csv, up to 10MB
+                </p>
+              )}
+            </motion.div>
+          </div>
           <input
             ref={fileInputRef}
             type="file"
