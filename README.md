@@ -47,10 +47,17 @@ larger real-world dataset (2823 rows, non-UTF-8 encoded):
 Deployed live on Vercel (frontend) and Render (backend) - see Live demo
 above.
 
-Not done yet: the ambient background/motion polish on the landing page
-(deferred on purpose), and a few edge-case states (live retry-attempt
-counter, styled failure state) that exist in Figma but not yet in the
-real UI.
+- **Reliability**: the backend sleeps on Render's free tier after
+  inactivity, and waking it back up (30-60s) can fail at the network level
+  rather than as a normal slow response. The frontend now retries with
+  backoff, pings `/health` on page load to start waking the backend early,
+  and shows a clear "waking up the server" message instead of a bare
+  "Failed to fetch."
+- **Landing page**: subtle entrance animations - a per-character fade-in
+  on the hero label and a soft breathing glow behind the upload drop zone.
+
+Not done yet: a few edge-case states (live retry-attempt counter, styled
+failure state) that exist in Figma but not yet in the real UI.
 
 ## Running it locally
 
