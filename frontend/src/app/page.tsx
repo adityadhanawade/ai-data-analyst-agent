@@ -1,22 +1,31 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import { TextEffect } from "@/components/core/text-effect";
 import { GlowEffect } from "@/components/core/glow-effect";
-import { uploadDataset } from "@/lib/api";
+import { uploadDataset, wakeBackend } from "@/lib/api";
 
 export default function UploadPage() {
   const router = useRouter();
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isWaking, setIsWaking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // The backend sleeps on Render's free tier after inactivity. Pinging it
+  // as soon as the page loads gives it a head start on waking up before
+  // the user has even picked a file.
+  useEffect(() => {
+    wakeBackend();
+  }, []);
 
   async function uploadFile(file: File) {
     setError(null);
     setIsUploading(true);
+    const wakingTimer = setTimeout(() => setIsWaking(true), 4000);
     try {
       const result = await uploadDataset(file);
       const params = new URLSearchParams({
@@ -33,6 +42,8 @@ export default function UploadPage() {
           : "Something went wrong uploading that file."
       );
     } finally {
+      clearTimeout(wakingTimer);
+      setIsWaking(false);
       setIsUploading(false);
     }
   }
@@ -157,8 +168,20 @@ export default function UploadPage() {
                   error ? "text-danger-text" : "text-text-primary"
                 }`}
               >
-                {isUploading ? "Uploading..." : error ? error : "Drop your CSV here"}
+                {isUploading
+                  ? isWaking
+                    ? "Waking up the server..."
+                    : "Uploading..."
+                  : error
+                  ? error
+                  : "Drop your CSV here"}
               </p>
+              {isUploading && isWaking && (
+                <p className="text-sm text-text-muted">
+                  The free-tier backend sleeps when idle - this can take up
+                  to a minute on the first request.
+                </p>
+              )}
               {!error && !isUploading && (
                 <p className="text-sm text-text-muted">
                   or click to browse - .csv, up to 10MB

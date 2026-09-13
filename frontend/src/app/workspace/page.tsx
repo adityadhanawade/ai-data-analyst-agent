@@ -13,6 +13,7 @@ type Turn = {
   result?: AskResult;
   errorMessage?: string;
   showCode?: boolean;
+  isWaking?: boolean;
 };
 
 const SUGGESTIONS = [
@@ -36,6 +37,12 @@ function WorkspaceContent() {
     setQuestion("");
     setTurns((prev) => [...prev, { question: q, status: "thinking" }]);
 
+    const wakingTimer = setTimeout(() => {
+      setTurns((prev) =>
+        prev.map((t, i) => (i === prev.length - 1 ? { ...t, isWaking: true } : t))
+      );
+    }, 4000);
+
     try {
       const result = await askQuestion(sessionId, q);
       setTurns((prev) =>
@@ -56,6 +63,8 @@ function WorkspaceContent() {
             : t
         )
       );
+    } finally {
+      clearTimeout(wakingTimer);
     }
   }
 
@@ -157,7 +166,9 @@ function WorkspaceContent() {
 
                   {turn.status === "thinking" && (
                     <div className="rounded-xl border border-amber-border bg-amber-bg px-4 py-3 text-sm text-amber-text">
-                      Writing analysis code and checking the result...
+                      {turn.isWaking
+                        ? "Waking up the server - the free-tier backend sleeps when idle, this can take up to a minute."
+                        : "Writing analysis code and checking the result..."}
                     </div>
                   )}
 
